@@ -1,0 +1,9 @@
+apiVersion: batch.step-job-operator.kubebuilder.io/v1
+kind: StepJob
+metadata:
+  labels:
+    app.kubernetes.io/name: step-job-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: stepjob-sample
+spec:
+  # TODO(user): Add fields here
