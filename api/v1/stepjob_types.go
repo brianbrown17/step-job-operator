@@ -23,7 +23,7 @@ import (
 )
 
 // Condition describes how what information to check for the step.
-// +kubebuilder:validation:Enum=Allow;Forbid;Replace
+// +kubebuilder:validation:Enum=ExitCode;Stdout;Stderr
 type Condition string
 
 const (
@@ -32,11 +32,13 @@ const (
 	Stderr   Condition = "Stderr"
 )
 
-// A toleration operator is the set of operators that can be used in a job condition.
-// +kubebuilder:validation:Enum=Allow;Forbid;Replace
+// Comparison operators for the job condition.
+// +kubebuilder:validation:Enum=Contains;NotContains;Exists;Equal
 type Operator string
 
 const (
+	Contains Operator = "Contains"
+	NotContains Operator = "NotContains"
 	Exists Operator = "Exists"
 	Equal  Operator = "Equal"
 )
@@ -53,62 +55,65 @@ type JobCondition struct {
 }
 
 type NextStep struct {
-	// +kubebuilder:validation:Required
-	Name *string `json:"name"`
+	Name string `json:"name,omitempty"`
 
+	// +optional
 	JobCondition *JobCondition `json:"condition,omitempty"`
 }
 
 type Step struct {
 	// +kubebuilder:validation:Required
 	// The name of the step
-	Name *string `json:"name"`
+	Name string `json:"name"`
 
-	// Specifies the job that will be created when executing a CronJob.
+	// Specifies the Job template that will be created when executing this step.
 	JobTemplate batchv1.JobTemplateSpec `json:"jobTemplate"`
 
 	// NextStep specifies the next steps to be executed based on the condition.
+	// There should only be one next step per condition type (parallel fan-out is not supported).
+	// If no conditions match, and no default step is specified, fail and stop the workflow.
+	// There should only maximum one step without a condition, which will be the default next step.
+	// TODO: add webhook to validate the above constraints.
 	NextStep []NextStep `json:"next,omitempty"`
 }
 
 // StepJobSpec defines the desired state of StepJob
 type StepJobSpec struct {
-	// +kubebuilder:validation:MinLength=0
+	// +kubebuilder:validation:MinLength=1
 	// The schedule in Cron format, see https://en.wikipedia.org/wiki/Cron.
 	Schedule string `json:"schedule"`
 
-	// The name of the job(s) to start at
+	// +kubebuilder:validation:MinLength=1
+	// The name of the starting job step.
 	StartAt string `json:"startAt"`
 
-	// +kubebuilder:validation:UniqueItems=true
 	// the steps comprising the workflow, including the job templates
-	Steps []*Step `json:"steps"`
+	Steps []Step `json:"steps"`
 
 	// +kubebuilder:validation:Minimum=0
 	// Optional deadline in seconds for starting the job if it misses scheduled
 	// time for any reason.  Missed jobs executions will be counted as failed ones.
 	StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds"`
 
+	// +kubebuilder:default:=false
 	// This flag tells the controller to suspend subsequent executions, it does
 	// not apply to already started executions.  Defaults to false.
 	Suspend *bool `json:"suspend"`
 
-	// +kubebuilder:validation:Minimum=0
 	// The number of successful finished jobs to retain.
 	// This is a pointer to distinguish between explicit zero and not specified.
-	SuccessfulJobsHistoryLimit int32 `json:"successfulJobsHistoryLimit"`
+	SuccessfulJobsHistoryLimit *int32 `json:"successfulJobsHistoryLimit,omitempty"`
 
-	// +kubebuilder:validation:Minimum=0
 	// The number of failed finished jobs to retain.
 	// This is a pointer to distinguish between explicit zero and not specified.
-	FailedJobsHistoryLimit int32 `json:"failedJobsHistoryLimit"`
+	FailedJobsHistoryLimit     *int32 `json:"failedJobsHistoryLimit,omitempty"`
 }
 
 // StepJobStatus defines the observed state of StepJob
 type StepJobStatus struct {
 	// Current step to manage.
 	// +optional
-	CurrentStep *Step `json:"nextStep,omitempty"`
+	CurrentStep string `json:"currentStep,omitempty"`
 
 	// Active running jobs
 	// +optional
