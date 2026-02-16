@@ -23,11 +23,11 @@ import (
 	. "github.com/onsi/gomega"
 
 	batchv1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	stepjobv1 "step-job-operator.kubebuilder.io/project/api/v1"
 )
@@ -54,16 +54,17 @@ var _ = Describe("StepJob Controller", func() {
 						Namespace: "default",
 					},
 					Spec: stepjobv1.StepJobSpec{
-						Schedule: stepjobv1.StrPtr("0 * * * *"),
-						Steps: []*stepjobv1.Step{
-							&stepjobv1.Step{
-								Name: stepjobv1.StrPtr("helloJob"),
-								JobTemplate: v1.JobTemplateSpec{
+						Schedule: "0 * * * *",
+						StartAt:  "helloJob",
+						Steps: []stepjobv1.Step{
+							{
+								Name: "helloJob",
+								JobTemplate: batchv1.JobTemplateSpec{
 									Spec: batchv1.JobSpec{
 										Template: corev1.PodTemplateSpec{
 											Spec: corev1.PodSpec{
 												Containers: []corev1.Container{
-													corev1.Container{
+													{
 														Name:            "hello",
 														Image:           "busybox:1.28",
 														ImagePullPolicy: corev1.PullIfNotPresent,
@@ -74,6 +75,7 @@ var _ = Describe("StepJob Controller", func() {
 														},
 													},
 												},
+												RestartPolicy: corev1.RestartPolicyOnFailure,
 											},
 										},
 									},
@@ -101,6 +103,7 @@ var _ = Describe("StepJob Controller", func() {
 			controllerReconciler := &StepJobReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
+				Clock:  &clock.RealClock{},
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

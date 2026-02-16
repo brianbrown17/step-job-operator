@@ -1,15 +1,12 @@
-# cron-step-operator
-A Kubernetes Operator for running defining step-function operations that run as k8s Jobs.
-
-Here’s a **README draft** for your `step-job-operator` project, including **project description** and **system requirements**, based on your Go module and dependencies:
-
----
-
 # Step Job Operator
 
 ## Project Description
 
-`step-job-operator` is a Kubernetes operator built with **Kubebuilder** for managing **sequential job workflows** (StepJobs) inside a cluster. It allows you to define workflows as a series of steps, each represented by a Kubernetes `Job`. Each step can specify conditional logic to determine the next step in the workflow based on job results, including exit codes, stdout, or stderr.
+`step-job-operator` is a Kubernetes operator built with **Kubebuilder** that orchestrates simple job workflows (StepJobs) inside a cluster. It allows you to define workflows as a series of steps, each represented by a Kubernetes `Job`. 
+
+Each step can specify conditional logic to determine the next step in the workflow based on job results, including exit codes, stdout, or stderr.
+
+This project is intended for lightweight, scheduled step functions, similar to an Argo Workflow.
 
 Key features:
 
@@ -19,7 +16,6 @@ Key features:
 * **Missed schedule handling:** Optional `startingDeadlineSeconds` ensures missed runs are handled as failed.
 * **History limits:** Configurable limits for successful and failed jobs to retain.
 
-This operator is ideal for **CI/CD style pipelines, batch job orchestration, and workflow automation** within Kubernetes.
 
 ---
 
@@ -119,9 +115,7 @@ spec:
 
   # Define workflow steps
   steps:
-    # --------------------------------------------------
     # Step 1: build
-    # --------------------------------------------------
     - name: build
       jobTemplate:
         spec:
@@ -141,9 +135,7 @@ spec:
             operator: Equal
             value: "0"
 
-    # --------------------------------------------------
     # Step 2: test
-    # --------------------------------------------------
     - name: test
       jobTemplate:
         spec:
@@ -163,9 +155,7 @@ spec:
             operator: Equal
             value: "0"
 
-    # --------------------------------------------------
     # Step 3: deploy
-    # --------------------------------------------------
     - name: deploy
       jobTemplate:
         spec:
@@ -179,86 +169,14 @@ spec:
 
 ```
 
-## Reconcile loop
-```mermaid
-flowchart TD
-    A[Reconcile triggered] --> B{Fetch StepJob}
+## Reconcile loop (wip)
 
-    B -->|Not Found| Z[Exit]
-
-    B --> C{Spec.Suspend == true?}
-    C -->|Yes| Z
-
-    C -->|No| D{Cron schedule due?}
-
-    D -->|No| Z
-    D -->|Yes| E{Missed schedule?}
-
-    E -->|Yes| F{startingDeadlineSeconds exceeded?}
-    F -->|Yes| G[Record missed run as failed]
-    G --> Z
-    F -->|No| H[Proceed]
-
-    E -->|No| H
-
-    H --> I{Active Job exists?}
-
-    I -->|Yes| J[Observe Job status]
-    I -->|No| K{CurrentStep set?}
-
-    K -->|No| L[Select StartAt step]
-    K -->|Yes| M[Load CurrentStep]
-
-    L --> N[Optional delay before step]
-    M --> N
-
-    N --> O[Create Job from JobTemplate]
-    O --> P[Set OwnerReference]
-    P --> Q[Update Status Active Job and CurrentStep]
-    Q --> Z
-
-    %% Job observation path
-    J --> R{Job completed?}
-
-    R -->|No| Z
-    R -->|Yes| S{Job succeeded?}
-
-    S -->|No| T[Mark step failed]
-    T --> U[Update Status]
-    U --> V[Apply FailedJobsHistoryLimit]
-    V --> Z
-
-    S -->|Yes| W[Fetch Pods for Job]
-
-    W --> X[Collect ExitCode / Stdout / Stderr]
-    X --> Y[Evaluate JobCondition]
-
-    %% Condition evaluation and next step selection
-    Y --> AA{Condition matched?}
-
-    AA -->|No & default step exists| AD[Select default NextStep]
-    AA -->|No & no default step| AB[Mark step failed]
-    AB --> U
-
-    AA -->|Yes| AC{NextStep defined?}
-
-    AC -->|Yes| AD[Select NextStep]
-    AD --> AE[Optional delay before next step]
-    AE --> AF[Update CurrentStep]
-    AF --> N
-
-    AC -->|No| AG[Workflow complete]
-
-    AG --> AH[Update LastScheduleTime]
-    AH --> AI[Apply SuccessfulJobsHistoryLimit]
-    AI --> Z
-
-    %% Note: Only one NextStep per condition is allowed; multiple matches are not supported.
-```
+	// 1: load state of the StepJob, ignore not-found errors and don't requeue
+	// 2a: ensure unique step names
+	// 2b: list all current jobs in the cluster owned by the StepJob, and update the status
+  // ...
 
 ## Contributing/Feedback
-
-We welcome contributions, suggestions, and bug reports to improve Step Job Operator!
 
 Make your changes following Go and Kubernetes controller best practices.
 

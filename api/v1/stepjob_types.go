@@ -37,10 +37,10 @@ const (
 type Operator string
 
 const (
-	Contains Operator = "Contains"
+	Contains    Operator = "Contains"
 	NotContains Operator = "NotContains"
-	Exists Operator = "Exists"
-	Equal  Operator = "Equal"
+	Exists      Operator = "Exists"
+	Equal       Operator = "Equal"
 )
 
 type JobCondition struct {
@@ -106,14 +106,14 @@ type StepJobSpec struct {
 
 	// The number of failed finished jobs to retain.
 	// This is a pointer to distinguish between explicit zero and not specified.
-	FailedJobsHistoryLimit     *int32 `json:"failedJobsHistoryLimit,omitempty"`
+	FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
 }
 
 // StepJobStatus defines the observed state of StepJob
 type StepJobStatus struct {
 	// Current step to manage.
 	// +optional
-	CurrentStep string `json:"currentStep,omitempty"`
+	CurrentStep *string `json:"currentStep,omitempty"`
 
 	// Active running jobs
 	// +optional
